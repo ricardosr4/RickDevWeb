@@ -87,11 +87,34 @@ El sitio se publicará en: https://rickdev-90632.web.app
 - `firebase.json` - Configuración de Firebase Hosting
 - `.firebaserc` - Configuración del proyecto Firebase
 
+## 🔀 Control de Versiones (Git)
+
+El proyecto utiliza Git con un flujo de trabajo profesional:
+
+- **`main`**: Código en producción
+- **`develop`**: Rama de desarrollo principal
+- **`feature/*`**: Ramas para nuevas funcionalidades
+- **`fix/*`**: Ramas para correcciones
+
+### Repositorio
+- **GitHub**: [ricardosr4/RickDevWeb](https://github.com/ricardosr4/RickDevWeb)
+
+### Flujo de Trabajo
+Ver [GIT_WORKFLOW.md](./GIT_WORKFLOW.md) para documentación completa sobre:
+- Cómo crear y trabajar con ramas
+- Convenciones de commits
+- Buenas prácticas
+- Solución de problemas
+
 ## Características
 
 - Header moderno y responsive
-- Diseño con gradientes
+- Diseño con gradientes y animaciones
 - Navegación funcional
+- Panel de administración completo
+- Gestión de imágenes con Firebase Storage
+- Formulario de contacto funcional
 - Configuración de Firebase incluida
+- Arquitectura limpia y escalable
 
 
