@@ -81,3 +81,4 @@ Si sigues teniendo problemas, comparte esta información:
 3. **Reglas actuales** (copia las reglas de Storage > Rules)
 4. **¿Estás autenticado?** (¿ves el dashboard o la pantalla de login?)
 
+

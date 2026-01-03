@@ -131,3 +131,4 @@ this._showMessage('Formulario validado correctamente (EmailJS no configurado)', 
 
 Pero recuerda configurar EmailJS para que los emails lleguen realmente.
 
+

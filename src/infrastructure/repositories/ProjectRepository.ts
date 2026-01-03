@@ -1,6 +1,6 @@
 /**
- * @fileoverview Repositorio para la colección de Experiences
- * @module infrastructure/repositories/ExperienceRepository
+ * @fileoverview Repositorio para la colección de Projects
+ * @module infrastructure/repositories/ProjectRepository
  */
 
 import { FirebaseService } from '../FirebaseService.js';
@@ -16,14 +16,14 @@ import {
   deleteDoc, 
   Timestamp 
 } from 'firebase/firestore';
-import type { IExperienceFirestoreData } from '../types/firestore.types';
+import type { IProjectFirestoreData } from '../types/firestore.types';
 
 /**
- * Repositorio para manejar operaciones de Experiences en Firestore
+ * Repositorio para manejar operaciones de Projects en Firestore
  * 
- * @class ExperienceRepository
+ * @class ProjectRepository
  */
-export class ExperienceRepository {
+export class ProjectRepository {
   /**
    * Nombre de la colección
    * 
@@ -31,16 +31,16 @@ export class ExperienceRepository {
    * @static
    * @readonly
    */
-  private static readonly COLLECTION_NAME = 'experiences';
+  private static readonly COLLECTION_NAME = 'projects';
 
   /**
-   * Obtiene todas las experiencias activas ordenadas por orden descendente
+   * Obtiene todos los proyectos activos ordenados por orden descendente
    * 
    * @static
-   * @returns {Promise<IExperienceFirestoreData[]>} Array de experiencias
+   * @returns {Promise<IProjectFirestoreData[]>} Array de proyectos
    * @throws {Error} Si falla la operación
    */
-  static async getExperiences(): Promise<IExperienceFirestoreData[]> {
+  static async getProjects(): Promise<IProjectFirestoreData[]> {
     try {
       if (!FirebaseService.isInitialized()) {
         FirebaseService.initialize();
@@ -59,31 +59,31 @@ export class ExperienceRepository {
       );
 
       const querySnapshot = await getDocs(q);
-      const experiences: IExperienceFirestoreData[] = [];
+      const projects: IProjectFirestoreData[] = [];
 
       querySnapshot.forEach((doc) => {
-        experiences.push({
+        projects.push({
           id: doc.id,
           ...doc.data()
-        } as IExperienceFirestoreData);
+        } as IProjectFirestoreData);
       });
 
-      return experiences;
+      return projects;
     } catch (error) {
-      console.error('Error al obtener experiencias:', error);
+      console.error('Error al obtener proyectos:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to get experiences: ${errorMessage}`);
+      throw new Error(`Failed to get projects: ${errorMessage}`);
     }
   }
 
   /**
-   * Obtiene todas las experiencias (incluyendo inactivas)
+   * Obtiene todos los proyectos (incluyendo inactivos)
    * 
    * @static
-   * @returns {Promise<IExperienceFirestoreData[]>} Array de todas las experiencias
+   * @returns {Promise<IProjectFirestoreData[]>} Array de todos los proyectos
    * @throws {Error} Si falla la operación
    */
-  static async getAllExperiences(): Promise<IExperienceFirestoreData[]> {
+  static async getAllProjects(): Promise<IProjectFirestoreData[]> {
     try {
       if (!FirebaseService.isInitialized()) {
         FirebaseService.initialize();
@@ -105,38 +105,38 @@ export class ExperienceRepository {
         querySnapshot = await getDocs(collection(db, this.COLLECTION_NAME));
       }
 
-      const experiences: IExperienceFirestoreData[] = [];
+      const projects: IProjectFirestoreData[] = [];
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        experiences.push({
+        projects.push({
           id: doc.id,
           order: data.order || 0,
           ...data
-        } as IExperienceFirestoreData);
+        } as IProjectFirestoreData);
       });
 
       // Ordenar manualmente si no se pudo ordenar en la query
-      experiences.sort((a, b) => (b.order || 0) - (a.order || 0));
+      projects.sort((a, b) => (b.order || 0) - (a.order || 0));
 
-      console.log(`getAllExperiences: Se obtuvieron ${experiences.length} experiencias`);
-      return experiences;
+      console.log(`getAllProjects: Se obtuvieron ${projects.length} proyectos`);
+      return projects;
     } catch (error) {
-      console.error('Error al obtener todas las experiencias:', error);
+      console.error('Error al obtener todos los proyectos:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to get all experiences: ${errorMessage}`);
+      throw new Error(`Failed to get all projects: ${errorMessage}`);
     }
   }
 
   /**
-   * Obtiene una experiencia por ID
+   * Obtiene un proyecto por ID
    * 
    * @static
-   * @param {string} id - ID de la experiencia
-   * @returns {Promise<IExperienceFirestoreData | null>} Experiencia o null si no existe
+   * @param {string} id - ID del proyecto
+   * @returns {Promise<IProjectFirestoreData | null>} Proyecto o null si no existe
    * @throws {Error} Si falla la operación
    */
-  static async getExperienceById(id: string): Promise<IExperienceFirestoreData | null> {
+  static async getProjectById(id: string): Promise<IProjectFirestoreData | null> {
     try {
       if (!FirebaseService.isInitialized()) {
         FirebaseService.initialize();
@@ -150,40 +150,43 @@ export class ExperienceRepository {
         return {
           id: docSnap.id,
           ...docSnap.data()
-        } as IExperienceFirestoreData;
+        } as IProjectFirestoreData;
       }
 
       return null;
     } catch (error) {
-      console.error('Error al obtener experiencia por ID:', error);
+      console.error('Error al obtener proyecto por ID:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to get experience: ${errorMessage}`);
+      throw new Error(`Failed to get project: ${errorMessage}`);
     }
   }
 
   /**
-   * Crea una nueva experiencia
+   * Crea un nuevo proyecto
    * 
    * @static
-   * @param {IExperienceFirestoreData} experienceData - Datos de la experiencia
-   * @returns {Promise<IExperienceFirestoreData>} Experiencia creada
+   * @param {IProjectFirestoreData} projectData - Datos del proyecto
+   * @returns {Promise<IProjectFirestoreData>} Proyecto creado
    * @throws {Error} Si falla la operación
    */
-  static async createExperience(experienceData: IExperienceFirestoreData): Promise<IExperienceFirestoreData> {
+  static async createProject(projectData: IProjectFirestoreData): Promise<IProjectFirestoreData> {
     try {
       if (!FirebaseService.isInitialized()) {
         FirebaseService.initialize();
       }
       
       const db = FirebaseService.getFirestore();
-      const id = experienceData.id || `exp_${Date.now()}`;
+      const id = projectData.id || `proj_${Date.now()}`;
       const docRef = doc(db, this.COLLECTION_NAME, id);
       
-      const dataToSave: IExperienceFirestoreData = {
-        ...experienceData,
+      const dataToSave: IProjectFirestoreData = {
+        ...projectData,
         id,
-        isActive: experienceData.isActive !== undefined ? experienceData.isActive : true,
-        order: experienceData.order || 0,
+        isActive: projectData.isActive !== undefined ? projectData.isActive : true,
+        order: projectData.order || 0,
+        images: projectData.images || [],
+        technologies: projectData.technologies || [],
+        features: projectData.features || [],
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
       };
@@ -193,27 +196,27 @@ export class ExperienceRepository {
       return {
         id,
         ...dataToSave
-      } as IExperienceFirestoreData;
+      } as IProjectFirestoreData;
     } catch (error) {
-      console.error('Error al crear experiencia:', error);
+      console.error('Error al crear proyecto:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to create experience: ${errorMessage}`);
+      throw new Error(`Failed to create project: ${errorMessage}`);
     }
   }
 
   /**
-   * Actualiza una experiencia existente
+   * Actualiza un proyecto existente
    * 
    * @static
-   * @param {string} id - ID de la experiencia
-   * @param {IExperienceFirestoreData} experienceData - Datos actualizados
-   * @returns {Promise<IExperienceFirestoreData>} Experiencia actualizada
+   * @param {string} id - ID del proyecto
+   * @param {IProjectFirestoreData} projectData - Datos actualizados
+   * @returns {Promise<IProjectFirestoreData>} Proyecto actualizado
    * @throws {Error} Si falla la operación
    */
-  static async updateExperience(
+  static async updateProject(
     id: string, 
-    experienceData: Partial<IExperienceFirestoreData>
-  ): Promise<IExperienceFirestoreData> {
+    projectData: Partial<IProjectFirestoreData>
+  ): Promise<IProjectFirestoreData> {
     try {
       if (!FirebaseService.isInitialized()) {
         FirebaseService.initialize();
@@ -222,8 +225,8 @@ export class ExperienceRepository {
       const db = FirebaseService.getFirestore();
       const docRef = doc(db, this.COLLECTION_NAME, id);
       
-      const dataToSave: Partial<IExperienceFirestoreData> = {
-        ...experienceData,
+      const dataToSave: Partial<IProjectFirestoreData> = {
+        ...projectData,
         updatedAt: Timestamp.now()
       };
 
@@ -232,41 +235,41 @@ export class ExperienceRepository {
       return {
         id,
         ...dataToSave
-      } as IExperienceFirestoreData;
+      } as IProjectFirestoreData;
     } catch (error) {
-      console.error('Error al actualizar experiencia:', error);
+      console.error('Error al actualizar proyecto:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to update experience: ${errorMessage}`);
+      throw new Error(`Failed to update project: ${errorMessage}`);
     }
   }
 
   /**
-   * Elimina una experiencia (soft delete)
+   * Elimina un proyecto (soft delete)
    * 
    * @static
-   * @param {string} id - ID de la experiencia
+   * @param {string} id - ID del proyecto
    * @returns {Promise<void>}
    * @throws {Error} Si falla la operación
    */
-  static async deleteExperience(id: string): Promise<void> {
+  static async deleteProject(id: string): Promise<void> {
     try {
-      await this.updateExperience(id, { isActive: false });
+      await this.updateProject(id, { isActive: false });
     } catch (error) {
-      console.error('Error al eliminar experiencia:', error);
+      console.error('Error al eliminar proyecto:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to delete experience: ${errorMessage}`);
+      throw new Error(`Failed to delete project: ${errorMessage}`);
     }
   }
 
   /**
-   * Elimina permanentemente una experiencia
+   * Elimina permanentemente un proyecto
    * 
    * @static
-   * @param {string} id - ID de la experiencia
+   * @param {string} id - ID del proyecto
    * @returns {Promise<void>}
    * @throws {Error} Si falla la operación
    */
-  static async hardDeleteExperience(id: string): Promise<void> {
+  static async hardDeleteProject(id: string): Promise<void> {
     try {
       if (!FirebaseService.isInitialized()) {
         FirebaseService.initialize();
@@ -276,12 +279,10 @@ export class ExperienceRepository {
       const docRef = doc(db, this.COLLECTION_NAME, id);
       await deleteDoc(docRef);
     } catch (error) {
-      console.error('Error al eliminar permanentemente experiencia:', error);
+      console.error('Error al eliminar permanentemente proyecto:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`Failed to hard delete experience: ${errorMessage}`);
+      throw new Error(`Failed to hard delete project: ${errorMessage}`);
     }
   }
 }
-
-
 

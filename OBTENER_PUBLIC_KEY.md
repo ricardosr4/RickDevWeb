@@ -85,3 +85,4 @@ Si ya tienes una Public Key pero sigue dando error, intenta:
 2. Verificar que no haya espacios al inicio o final al copiar
 3. Asegurarte de que estés usando la Public Key, no la Private Key
 
+

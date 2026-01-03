@@ -185,6 +185,11 @@ class App {
         ContentRenderer.renderSkills(data.skills);
       }
 
+      // Renderizar proyectos
+      if (data.projects && data.projects.length > 0) {
+        ContentRenderer.renderProjects(data.projects);
+      }
+
       console.log('Datos cargados desde Firestore correctamente');
       
       // Las imágenes se cargarán de forma asíncrona sin bloquear

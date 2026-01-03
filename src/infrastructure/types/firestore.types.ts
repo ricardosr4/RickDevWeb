@@ -85,4 +85,25 @@ export interface ISkillsFirestoreData {
   updatedAt?: Timestamp;
 }
 
+/**
+ * Datos de proyecto en Firestore
+ */
+export interface IProjectFirestoreData {
+  id?: string;
+  name?: string;
+  description?: string;
+  shortDescription?: string; // Descripción corta para la card (3 líneas)
+  mainImage?: string; // Imagen principal para la card
+  images?: string[]; // Array de imágenes para el carrusel del detalle
+  technologies?: string[]; // Tecnologías principales
+  fullDescription?: string; // Descripción completa para la página de detalle
+  features?: string[]; // Características del proyecto
+  repositoryUrl?: string; // URL del repositorio
+  liveUrl?: string; // URL de la demo en vivo
+  order?: number;
+  isActive?: boolean;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 

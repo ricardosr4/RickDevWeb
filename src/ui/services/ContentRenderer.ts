@@ -7,7 +7,8 @@ import type {
   IProfileData, 
   IExperienceFirestoreData, 
   IEducationFirestoreData, 
-  ISkillsFirestoreData 
+  ISkillsFirestoreData,
+  IProjectFirestoreData 
 } from '@infrastructure/types/firestore.types';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -221,6 +222,247 @@ export class ContentRenderer {
 
       skillsGrid.insertAdjacentHTML('beforeend', categoryHTML);
     });
+  }
+
+  /**
+   * Renderiza los proyectos
+   * 
+   * @static
+   * @param {IProjectFirestoreData[]} projects - Array de proyectos
+   */
+  static renderProjects(projects: IProjectFirestoreData[]): void {
+    const projectsGrid = document.querySelector<HTMLElement>('.projects-grid');
+    if (!projectsGrid || !projects || projects.length === 0) return;
+
+    // Filtrar solo proyectos activos
+    const activeProjects = projects.filter(proj => proj.isActive !== false);
+    
+    if (activeProjects.length === 0) {
+      projectsGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No hay proyectos disponibles</p>';
+      return;
+    }
+
+    projectsGrid.innerHTML = activeProjects.map(project => {
+      const technologies = Array.isArray(project.technologies) && project.technologies.length > 0
+        ? project.technologies.map(tech => `<span class="tag" role="listitem">${this._escapeHtml(tech)}</span>`).join('')
+        : '';
+
+      const projectId = project.id || `project-${Date.now()}`;
+      const projectUrl = `#proyecto-${projectId}`;
+
+      return `
+        <article class="project-card" role="listitem" data-project-id="${projectId}">
+          <div class="project-image">
+            ${project.mainImage 
+              ? `<img src="${this._escapeHtml(project.mainImage)}" alt="${this._escapeHtml(project.name || '')}" loading="lazy">`
+              : `<div class="project-placeholder" aria-hidden="true">${this._escapeHtml(project.name || 'Proyecto')}</div>`
+            }
+          </div>
+          <div class="project-content">
+            <h3>${this._escapeHtml(project.name || 'Sin nombre')}</h3>
+            <p>${this._escapeHtml(project.shortDescription || project.description || '')}</p>
+            ${technologies ? `
+              <div class="project-tags" role="list" aria-label="Tecnologías utilizadas">
+                ${technologies}
+              </div>
+            ` : ''}
+            <a href="${projectUrl}" class="project-link" aria-label="Ver más detalles de ${this._escapeHtml(project.name || 'este proyecto')}" data-project-id="${projectId}">Ver más →</a>
+          </div>
+        </article>
+      `;
+    }).join('');
+
+    // Agregar event listeners para los enlaces "Ver más"
+    projectsGrid.querySelectorAll('.project-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const projectId = (link as HTMLElement).dataset.projectId;
+        if (projectId) {
+          this.showProjectDetail(projectId, activeProjects);
+        }
+      });
+    });
+  }
+
+  /**
+   * Muestra el detalle de un proyecto
+   * 
+   * @static
+   * @param {string} projectId - ID del proyecto
+   * @param {IProjectFirestoreData[]} projects - Array de todos los proyectos
+   */
+  static showProjectDetail(projectId: string, projects: IProjectFirestoreData[]): void {
+    const project = projects.find(p => (p.id || `project-${Date.now()}`) === projectId);
+    if (!project) return;
+
+    // Crear o actualizar el modal de detalle
+    let detailModal = document.getElementById('project-detail-modal');
+    if (!detailModal) {
+      detailModal = document.createElement('div');
+      detailModal.id = 'project-detail-modal';
+      detailModal.className = 'project-detail-modal';
+      document.body.appendChild(detailModal);
+    }
+
+    const images = project.images || [];
+    const allImages = project.mainImage ? [project.mainImage, ...images] : images;
+    const carouselHTML = allImages.length > 0 ? this._generateImageCarousel(allImages, project.name || '') : '';
+    
+    const technologies = Array.isArray(project.technologies) && project.technologies.length > 0
+      ? project.technologies.map(tech => `<span class="tag">${this._escapeHtml(tech)}</span>`).join('')
+      : '';
+
+    const features = Array.isArray(project.features) && project.features.length > 0
+      ? project.features.map(feature => `<li>${this._escapeHtml(feature)}</li>`).join('')
+      : '';
+
+    detailModal.innerHTML = `
+      <div class="project-detail-overlay"></div>
+      <div class="project-detail-content">
+        <button class="project-detail-close" aria-label="Cerrar detalle del proyecto">&times;</button>
+        <div class="project-detail-header">
+          <h2>${this._escapeHtml(project.name || 'Sin nombre')}</h2>
+        </div>
+        ${carouselHTML}
+        <div class="project-detail-body">
+          ${project.fullDescription || project.description ? `
+            <div class="project-detail-section">
+              <h3>Descripción</h3>
+              <p>${this._escapeHtml(project.fullDescription || project.description || '')}</p>
+            </div>
+          ` : ''}
+          ${technologies ? `
+            <div class="project-detail-section">
+              <h3>Tecnologías</h3>
+              <div class="project-tags">${technologies}</div>
+            </div>
+          ` : ''}
+          ${features ? `
+            <div class="project-detail-section">
+              <h3>Características</h3>
+              <ul class="project-features">${features}</ul>
+            </div>
+          ` : ''}
+          <div class="project-detail-links">
+            ${project.repositoryUrl ? `
+              <a href="${this._escapeHtml(project.repositoryUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-primary">
+                Ver Código
+              </a>
+            ` : ''}
+            ${project.liveUrl ? `
+              <a href="${this._escapeHtml(project.liveUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+                Ver Demo
+              </a>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Mostrar modal
+    detailModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    // Event listeners
+    const closeBtn = detailModal.querySelector('.project-detail-close');
+    const overlay = detailModal.querySelector('.project-detail-overlay');
+    
+    const closeModal = () => {
+      detailModal!.style.display = 'none';
+      document.body.style.overflow = '';
+    };
+
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    if (overlay) overlay.addEventListener('click', closeModal);
+
+    // Inicializar carrusel si hay imágenes
+    if (allImages.length > 0) {
+      this._initImageCarousel();
+    }
+  }
+
+  /**
+   * Genera el HTML del carrusel de imágenes
+   * 
+   * @private
+   * @static
+   * @param {string[]} images - Array de URLs de imágenes
+   * @param {string} altText - Texto alternativo
+   * @returns {string} HTML del carrusel
+   */
+  private static _generateImageCarousel(images: string[], altText: string): string {
+    if (images.length === 0) return '';
+
+    const slides = images.map((img, index) => `
+      <div class="carousel-slide ${index === 0 ? 'active' : ''}">
+        <img src="${this._escapeHtml(img)}" alt="${this._escapeHtml(altText)} - Imagen ${index + 1}" loading="lazy">
+      </div>
+    `).join('');
+
+    const indicators = images.map((_, index) => `
+      <button class="carousel-indicator ${index === 0 ? 'active' : ''}" data-slide="${index}" aria-label="Ir a imagen ${index + 1}"></button>
+    `).join('');
+
+    return `
+      <div class="project-carousel">
+        <div class="carousel-container">
+          ${slides}
+        </div>
+        ${images.length > 1 ? `
+          <button class="carousel-prev" aria-label="Imagen anterior">‹</button>
+          <button class="carousel-next" aria-label="Imagen siguiente">›</button>
+          <div class="carousel-indicators">
+            ${indicators}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Inicializa el carrusel de imágenes
+   * 
+   * @private
+   * @static
+   */
+  private static _initImageCarousel(): void {
+    let currentSlide = 0;
+    const slides = document.querySelectorAll<HTMLElement>('.carousel-slide');
+    const indicators = document.querySelectorAll<HTMLElement>('.carousel-indicator');
+    const prevBtn = document.querySelector<HTMLElement>('.carousel-prev');
+    const nextBtn = document.querySelector<HTMLElement>('.carousel-next');
+
+    const showSlide = (index: number) => {
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === index);
+      });
+      indicators.forEach((indicator, i) => {
+        indicator.classList.toggle('active', i === index);
+      });
+    };
+
+    const nextSlide = () => {
+      currentSlide = (currentSlide + 1) % slides.length;
+      showSlide(currentSlide);
+    };
+
+    const prevSlide = () => {
+      currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+      showSlide(currentSlide);
+    };
+
+    if (nextBtn) nextBtn.addEventListener('click', nextSlide);
+    if (prevBtn) prevBtn.addEventListener('click', prevSlide);
+
+    indicators.forEach((indicator, index) => {
+      indicator.addEventListener('click', () => {
+        currentSlide = index;
+        showSlide(currentSlide);
+      });
+    });
+
+    // Auto-play opcional (cada 5 segundos)
+    setInterval(nextSlide, 5000);
   }
 
   /**

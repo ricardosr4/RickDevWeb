@@ -7,11 +7,13 @@ import { ProfileRepository } from '@infrastructure/repositories/ProfileRepositor
 import { ExperienceRepository } from '@infrastructure/repositories/ExperienceRepository';
 import { EducationRepository } from '@infrastructure/repositories/EducationRepository';
 import { SkillRepository } from '@infrastructure/repositories/SkillRepository';
+import { ProjectRepository } from '@infrastructure/repositories/ProjectRepository';
 import type { 
   IProfileData, 
   IExperienceFirestoreData, 
   IEducationFirestoreData, 
-  ISkillsFirestoreData 
+  ISkillsFirestoreData,
+  IProjectFirestoreData 
 } from '@infrastructure/types/firestore.types';
 
 /**
@@ -22,6 +24,7 @@ export interface IAppData {
   experiences: IExperienceFirestoreData[];
   educations: IEducationFirestoreData[];
   skills: ISkillsFirestoreData | null;
+  projects: IProjectFirestoreData[];
 }
 
 /**
@@ -63,6 +66,14 @@ export class DataService {
   private static _skills: ISkillsFirestoreData | null = null;
 
   /**
+   * Caché de proyectos
+   * 
+   * @private
+   * @static
+   */
+  private static _projects: IProjectFirestoreData[] | null = null;
+
+  /**
    * Carga todos los datos desde Firestore
    * 
    * @static
@@ -71,18 +82,20 @@ export class DataService {
    */
   static async loadAllData(): Promise<IAppData> {
     try {
-      const [profile, experiences, educations, skills] = await Promise.all([
+      const [profile, experiences, educations, skills, projects] = await Promise.all([
         this.getProfile(),
         this.getExperiences(),
         this.getEducations(),
-        this.getSkills()
+        this.getSkills(),
+        this.getProjects()
       ]);
 
       return {
         profile,
         experiences,
         educations,
-        skills
+        skills,
+        projects
       };
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -185,6 +198,32 @@ export class DataService {
   }
 
   /**
+   * Obtiene los proyectos
+   * 
+   * @static
+   * @param {boolean} forceRefresh - Si es true, fuerza la recarga
+   * @returns {Promise<IProjectFirestoreData[]>} Array de proyectos
+   */
+  static async getProjects(forceRefresh: boolean = false): Promise<IProjectFirestoreData[]> {
+    if (this._projects && !forceRefresh) {
+      return this._projects;
+    }
+
+    try {
+      this._projects = await ProjectRepository.getProjects();
+      return this._projects;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('index')) {
+        console.warn('Los índices de Firestore se están construyendo. Esto puede tardar unos minutos. La aplicación usará datos estáticos mientras tanto.');
+      } else {
+        console.error('Error al obtener proyectos:', error);
+      }
+      return [];
+    }
+  }
+
+  /**
    * Limpia el caché de datos
    * 
    * @static
@@ -194,7 +233,9 @@ export class DataService {
     this._experiences = null;
     this._educations = null;
     this._skills = null;
+    this._projects = null;
   }
 }
+
 
 

@@ -54,3 +54,4 @@ Sigue la guía: **`CONFIGURAR_EMAILJS_PASO_A_PASO.md`**
 
 **NO necesitas hacer nada en Firebase Console para esto.**
 
+
