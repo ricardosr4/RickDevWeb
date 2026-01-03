@@ -1,0 +1,25 @@
+{
+  "firstName": "Ricardo",
+  "lastName": "Soto",
+  "fullName": "Ricardo Soto Ramirez",
+  "title": "Desarrollador Android",
+  "bio": "Desarrollador Android con 3 años de experiencia en Kotlin, especializado en XML, Jetpack Compose y arquitecturas limpias (Clean Architecture, MVVM). Enfocado en la creación de aplicaciones robustas y escalables. Busco aportar soluciones innovadoras y liderar proyectos que lleven las aplicaciones móviles al siguiente nivel.",
+  "email": "ricardosr4@gmail.com",
+  "phone": "+569-5646-8732",
+  "location": "Santiago, Chile",
+  "website": "https://rickdev-90632.web.app",
+  "avatar": "",
+  "social": {
+    "linkedin": "https://www.linkedin.com/in/ricardosotoramirez/",
+    "github": "https://github.com/ricardosr4",
+    "twitter": "",
+    "portfolio": "https://rickdev-90632.web.app"
+  },
+  "version": 1,
+  "createdAt": {
+    "_seconds": 1765684554
+  },
+  "updatedAt": {
+    "_seconds": 1765684554
+  }
+}

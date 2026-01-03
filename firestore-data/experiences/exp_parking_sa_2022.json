@@ -1,0 +1,41 @@
+{
+  "id": "exp_parking_sa_2022",
+  "position": "Desarrollador Android",
+  "company": "Parking S.A.",
+  "location": "Remoto",
+  "startDate": {
+    "_seconds": 1661990400
+  },
+  "endDate": null,
+  "isCurrent": true,
+  "period": "Septiembre 2022 - Presente",
+  "description": "Colaboro como desarrollador Android de manera freelance en el equipo encargado de brindar soporte, mantenimiento y mejoras continuas a la aplicación móvil.",
+  "responsibilities": [
+    "Brindar soporte y mantenimiento continuo a la aplicación móvil",
+    "Implementar nuevas funcionalidades bajo supervisión del desarrollador principal",
+    "Optimizar el rendimiento de la aplicación",
+    "Participar en la creación de nuevas características",
+    "Mejorar la experiencia del usuario y la funcionalidad general",
+    "Resolver problemas técnicos",
+    "Optimizar el código existente"
+  ],
+  "technologies": [
+    "Kotlin",
+    "Android",
+    "XML",
+    "Jetpack Compose"
+  ],
+  "tools": [
+    "Git",
+    "GitHub",
+    "Firebase"
+  ],
+  "order": 2,
+  "isActive": true,
+  "createdAt": {
+    "_seconds": 1765684554
+  },
+  "updatedAt": {
+    "_seconds": 1765684554
+  }
+}

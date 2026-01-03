@@ -1,0 +1,41 @@
+{
+  "lenguajes": [
+    "Kotlin"
+  ],
+  "frameworksUI": [
+    "Jetpack Compose",
+    "XML",
+    "Design Responsive"
+  ],
+  "arquitectura": [
+    "Clean Architecture",
+    "Modularización",
+    "Clean Code",
+    "MVVM",
+    "MVI",
+    "SOLID"
+  ],
+  "libreriasAPIs": [
+    "Retrofit",
+    "Room",
+    "Shared Preferences",
+    "Hilt"
+  ],
+  "herramientas": [
+    "Git",
+    "GitHub",
+    "Figma",
+    "Canva",
+    "Firebase",
+    "Gemini",
+    "Chat GPT",
+    "Cursor"
+  ],
+  "testing": [
+    "Test Unit",
+    "Test UI"
+  ],
+  "updatedAt": {
+    "_seconds": 1765684554
+  }
+}

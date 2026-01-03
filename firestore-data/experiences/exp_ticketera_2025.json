@@ -1,0 +1,41 @@
+{
+  "id": "exp_ticketera_2025",
+  "position": "Desarrollador Android",
+  "company": "Ticketera Digital Spa.",
+  "location": "Remoto",
+  "startDate": {
+    "_seconds": 1746057600
+  },
+  "endDate": {
+    "_seconds": 1759276800
+  },
+  "isCurrent": false,
+  "period": "Mayo 2025 - Septiembre 2025",
+  "description": "Me especialicé en Jetpack Compose. Creé desde cero una aplicación de validación de tickets usando códigos QR.",
+  "responsibilities": [
+    "Especialización en Jetpack Compose",
+    "Creación desde cero de aplicación de validación de tickets con códigos QR",
+    "Desarrollo de aplicación para venta de entradas y productos de alimentación",
+    "Desarrollo de aplicaciones para tótems de autoatención",
+    "Mantenimiento de aplicaciones para centros de entretención"
+  ],
+  "technologies": [
+    "Kotlin",
+    "Android",
+    "Jetpack Compose",
+    "QR Code"
+  ],
+  "tools": [
+    "Git",
+    "GitHub",
+    "Figma"
+  ],
+  "order": 1,
+  "isActive": true,
+  "createdAt": {
+    "_seconds": 1765684554
+  },
+  "updatedAt": {
+    "_seconds": 1765684554
+  }
+}

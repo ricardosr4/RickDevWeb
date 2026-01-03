@@ -1,0 +1,26 @@
+{
+  "id": "edu_bootcamp_refactory_2024",
+  "degree": "Bootcamp Refactory Life",
+  "institution": "Refactory Life Academy",
+  "field": "Desarrollo Android",
+  "location": "Chile",
+  "startDate": {
+    "_seconds": 1709251200
+  },
+  "endDate": {
+    "_seconds": 1730332800
+  },
+  "period": "Marzo 2024 - Octubre 2024",
+  "isCompleted": true,
+  "description": "Bootcamp especializado en desarrollo Android con enfoque en Kotlin, Jetpack Compose y arquitecturas limpias.",
+  "specialization": "Desarrollo Android - Kotlin, Jetpack Compose, Clean Architecture",
+  "honors": "Egresado",
+  "order": 1,
+  "isActive": true,
+  "createdAt": {
+    "_seconds": 1765684554
+  },
+  "updatedAt": {
+    "_seconds": 1765684554
+  }
+}

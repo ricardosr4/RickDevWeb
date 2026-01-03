@@ -1,0 +1,35 @@
+{
+  "name": "web-ricardo",
+  "version": "1.2.0",
+  "description": "Portafolio profesional con Clean Architecture, TypeScript y Vite",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "version:patch": "node scripts/version-simple.js",
+    "predeploy": "npm run build && node scripts/pre-deploy-simple.js",
+    "deploy": "npm run predeploy && firebase deploy --only hosting",
+    "deploy:hosting": "npm run predeploy && firebase deploy --only hosting",
+    "populate:firestore": "node scripts/populate-firestore.js"
+  },
+  "dependencies": {
+    "@emailjs/browser": "^4.4.1",
+    "firebase": "^10.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@typescript-eslint/eslint-plugin": "^6.15.0",
+    "@typescript-eslint/parser": "^6.15.0",
+    "eslint": "^8.56.0",
+    "firebase-tools": "^13.0.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
