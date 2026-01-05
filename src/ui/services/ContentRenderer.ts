@@ -232,13 +232,41 @@ export class ContentRenderer {
    */
   static renderProjects(projects: IProjectFirestoreData[]): void {
     const projectsGrid = document.querySelector<HTMLElement>('.projects-grid');
-    if (!projectsGrid || !projects || projects.length === 0) return;
+    if (!projectsGrid) {
+      console.warn('ContentRenderer.renderProjects: No se encontró .projects-grid');
+      return;
+    }
 
-    // Filtrar solo proyectos activos
-    const activeProjects = projects.filter(proj => proj.isActive !== false);
+    console.log('ContentRenderer.renderProjects: Proyectos recibidos:', projects);
+
+    // Limpiar el grid primero para evitar el "flash" de contenido estático
+    projectsGrid.innerHTML = '';
+    
+    // Si no hay proyectos, mostrar mensaje
+    if (!projects || projects.length === 0) {
+      console.log('ContentRenderer.renderProjects: No hay proyectos, mostrando mensaje');
+      projectsGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No hay proyectos disponibles</p>';
+      return;
+    }
+
+    // Filtrar solo proyectos activos (isActive debe ser explícitamente true)
+    // Esto asegura que los proyectos eliminados o inactivos no aparezcan
+    const activeProjects = projects
+      .filter(proj => {
+        const isActive = proj.isActive === true;
+        if (!isActive) {
+          console.log(`✗ Proyecto ${proj.id} filtrado en render (isActive: ${proj.isActive}, name: ${proj.name})`);
+        }
+        return isActive;
+      })
+      .sort((a, b) => (b.order || 0) - (a.order || 0))
+      .slice(0, 9); // Limitar a máximo 9 proyectos
+    
+    console.log('ContentRenderer.renderProjects: Proyectos activos después de filtrar:', activeProjects.length);
+    console.log('ContentRenderer.renderProjects: IDs de proyectos activos:', activeProjects.map(p => ({ id: p.id, name: p.name, isActive: p.isActive })));
     
     if (activeProjects.length === 0) {
-      projectsGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No hay proyectos disponibles</p>';
+      projectsGrid.innerHTML = '<p style="color: var(--text-secondary); text-align: center; padding: 2rem;">No hay proyectos activos disponibles</p>';
       return;
     }
 
@@ -250,12 +278,19 @@ export class ContentRenderer {
       const projectId = project.id || `project-${Date.now()}`;
       const projectUrl = `#proyecto-${projectId}`;
 
+      // Detectar si es video o imagen
+      const isVideo = project.mainImage && (project.mainImage.includes('.webm') || project.mainImage.includes('.mp4') || project.mainImage.includes('.ogg'));
+      const projectNameEscaped = this._escapeHtml(project.name || 'Proyecto');
+      const imageUrlEscaped = project.mainImage ? this._escapeHtml(project.mainImage) : '';
+      
       return `
         <article class="project-card" role="listitem" data-project-id="${projectId}">
           <div class="project-image">
             ${project.mainImage 
-              ? `<img src="${this._escapeHtml(project.mainImage)}" alt="${this._escapeHtml(project.name || '')}" loading="lazy">`
-              : `<div class="project-placeholder" aria-hidden="true">${this._escapeHtml(project.name || 'Proyecto')}</div>`
+              ? (isVideo 
+                  ? `<video src="${imageUrlEscaped}" alt="${projectNameEscaped}" loading="lazy" muted playsinline></video>`
+                  : `<img src="${imageUrlEscaped}" alt="${projectNameEscaped}" loading="lazy">`)
+              : `<div class="project-placeholder" aria-hidden="true">${projectNameEscaped}</div>`
             }
           </div>
           <div class="project-content">

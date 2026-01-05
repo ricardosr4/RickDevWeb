@@ -63,12 +63,13 @@
       font-size: 0.875rem;
     }
   </style>
-  <script type="module" crossorigin src="/js/admin-DlqQmI2Q.js"></script>
+  <!-- Los scripts se inyectan automáticamente por Vite durante el build -->
+  <script type="module" crossorigin src="/js/admin-C24snlHp.js"></script>
   <link rel="modulepreload" crossorigin href="/js/chunks/firebase-core-CN--qmJf.js">
-  <link rel="modulepreload" crossorigin href="/js/chunks/firebase-firestore-BPaIxDsz.js">
+  <link rel="modulepreload" crossorigin href="/js/chunks/firebase-firestore-MGBcbJe9.js">
   <link rel="modulepreload" crossorigin href="/js/chunks/firebase-auth-DiddsyuA.js">
-  <link rel="modulepreload" crossorigin href="/js/chunks/ProjectRepository-uG2U6vFB.js">
-  <link rel="modulepreload" crossorigin href="/js/chunks/ContactMessageRepository-DivTk-lg.js">
+  <link rel="modulepreload" crossorigin href="/js/chunks/ProjectRepository-ySqNCcMD.js">
+  <link rel="modulepreload" crossorigin href="/js/chunks/ContactMessageRepository-C83ExzRH.js">
   <link rel="stylesheet" crossorigin href="/assets/admin-BlVuLVcb.css">
 </head>
 <body>
@@ -130,6 +131,7 @@
       <button class="nav-btn" data-section="experiences">Experiencias</button>
       <button class="nav-btn" data-section="education">Educación</button>
       <button class="nav-btn" data-section="skills">Habilidades</button>
+      <button class="nav-btn" data-section="projects">Proyectos</button>
       <button class="nav-btn" data-section="messages">
         Mensajes
         <span id="messages-badge" class="nav-badge" style="display: none;">0</span>
@@ -187,7 +189,7 @@
           <div class="form-group">
             <label for="profile-bannerImage">Banner (imagen de fondo)</label>
             <div class="image-upload-container">
-              <input type="file" id="profile-bannerImage" name="bannerImage" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" style="display: none;">
+              <input type="file" id="profile-bannerImage" name="bannerImage" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/webm,video/mp4,video/ogg" style="display: none;">
               <div class="image-upload-wrapper">
                 <button type="button" class="btn btn-secondary" id="banner-upload-btn">Seleccionar Imagen</button>
                 <span class="image-upload-info" id="banner-file-info">Ningún archivo seleccionado</span>
@@ -211,7 +213,7 @@
           <div class="form-group">
             <label for="profile-profileImage">Foto de Perfil</label>
             <div class="image-upload-container">
-              <input type="file" id="profile-profileImage" name="profileImage" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif" style="display: none;">
+              <input type="file" id="profile-profileImage" name="profileImage" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/webm,video/mp4,video/ogg" style="display: none;">
               <div class="image-upload-wrapper">
                 <button type="button" class="btn btn-secondary" id="profile-upload-btn">Seleccionar Imagen</button>
                 <span class="image-upload-info" id="profile-file-info">Ningún archivo seleccionado</span>
@@ -297,6 +299,16 @@
           </div>
           <div id="skills-message" class="message" style="display: none;"></div>
         </form>
+      </section>
+
+      <!-- Projects Section -->
+      <section id="section-projects" class="admin-section">
+        <div class="section-header">
+          <h2>Proyectos</h2>
+          <button id="add-project-btn" class="btn btn-primary">+ Agregar Proyecto</button>
+        </div>
+        <div id="project-message" class="message" style="display: none;"></div>
+        <div id="projects-list" class="items-list"></div>
       </section>
 
       <!-- Messages Section -->
@@ -446,6 +458,119 @@
           <button type="submit" class="btn btn-primary">Guardar</button>
         </div>
         <div id="education-message" class="message" style="display: none;"></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="project-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+      <div class="modal-header">
+        <h2 id="project-modal-title">Nuevo Proyecto</h2>
+        <button class="modal-close" data-modal="project-modal">&times;</button>
+      </div>
+      <form id="project-form" class="admin-form">
+        <input type="hidden" id="project-id" name="id">
+        
+        <div class="form-group">
+          <label for="project-name">Nombre del Proyecto *</label>
+          <input type="text" id="project-name" name="name" required>
+        </div>
+
+        <div class="form-group">
+          <label for="project-shortDescription">Descripción Corta (para la card, máximo 3 líneas) *</label>
+          <textarea id="project-shortDescription" name="shortDescription" rows="3" required placeholder="Descripción breve que aparecerá en la tarjeta del proyecto"></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="project-fullDescription">Descripción Completa (para la página de detalle)</label>
+          <textarea id="project-fullDescription" name="fullDescription" rows="6" placeholder="Descripción detallada del proyecto que aparecerá en la página de detalle"></textarea>
+        </div>
+
+        <!-- Imagen Principal -->
+        <div class="form-group">
+          <label for="project-mainImage">Imagen Principal (para la card) *</label>
+          <div class="image-upload-container">
+            <input type="file" id="project-mainImage" name="mainImage" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/webm,video/mp4,video/ogg" style="display: none;">
+            <div class="image-upload-wrapper">
+              <button type="button" class="btn btn-secondary" id="project-mainImage-upload-btn">Seleccionar Imagen</button>
+              <span class="image-upload-info" id="project-mainImage-file-info">Ningún archivo seleccionado</span>
+            </div>
+            <div class="image-preview" id="project-mainImage-preview" style="display: none;">
+              <img id="project-mainImage-preview-img" src="" alt="Preview imagen principal">
+              <button type="button" class="btn-remove-image" id="project-mainImage-remove-btn">✕</button>
+            </div>
+            <div class="image-current" id="project-mainImage-current" style="display: none;">
+              <p style="color: var(--admin-text-light); font-size: 0.875rem; margin-top: 0.5rem;">Imagen actual:</p>
+              <img id="project-mainImage-current-img" src="" alt="Imagen principal actual">
+            </div>
+            <input type="hidden" id="project-mainImage-url" name="mainImageUrl">
+          </div>
+          <small style="color: var(--admin-text-light); font-size: 0.875rem; display: block; margin-top: 0.5rem;">
+            Selecciona una imagen o video principal para la tarjeta del proyecto (máx. 10MB imágenes, 50MB videos). Formatos: JPEG, PNG, WebP, GIF, SVG, WebM, MP4, OGG
+          </small>
+        </div>
+
+        <!-- Imágenes Adicionales -->
+        <div class="form-group">
+          <label>Imágenes Adicionales (para el carrusel del detalle)</label>
+          <div id="project-images-container">
+            <div class="image-upload-container" data-image-index="0">
+              <input type="file" class="project-additional-image" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/webm,video/mp4,video/ogg" style="display: none;">
+              <div class="image-upload-wrapper">
+                <button type="button" class="btn btn-secondary project-image-upload-btn">Seleccionar Imagen</button>
+                <span class="image-upload-info project-image-file-info">Ningún archivo seleccionado</span>
+              </div>
+              <div class="image-preview project-image-preview" style="display: none;">
+                <img class="project-image-preview-img" src="" alt="Preview">
+                <button type="button" class="btn-remove-image project-image-remove-btn">✕</button>
+              </div>
+              <input type="hidden" class="project-image-url">
+            </div>
+          </div>
+          <button type="button" class="btn btn-secondary" id="add-project-image-btn" style="margin-top: 0.5rem;">+ Agregar Otra Imagen</button>
+          <small style="color: var(--admin-text-light); font-size: 0.875rem; display: block; margin-top: 0.5rem;">
+            Agrega imágenes o videos adicionales que aparecerán en el carrusel de la página de detalle (máx. 10MB imágenes, 50MB videos). Formatos: JPEG, PNG, WebP, GIF, SVG, WebM, MP4, OGG
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label for="project-technologies">Tecnologías Principales (separadas por comas) *</label>
+          <input type="text" id="project-technologies" name="technologies" required placeholder="Kotlin, Android, Jetpack Compose">
+        </div>
+
+        <div class="form-group">
+          <label for="project-features">Características (una por línea)</label>
+          <textarea id="project-features" name="features" rows="5" placeholder="Característica 1&#10;Característica 2&#10;Característica 3"></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="project-repositoryUrl">URL del Repositorio</label>
+            <input type="url" id="project-repositoryUrl" name="repositoryUrl" placeholder="https://github.com/usuario/proyecto">
+          </div>
+          <div class="form-group">
+            <label for="project-liveUrl">URL en Vivo (Demo)</label>
+            <input type="url" id="project-liveUrl" name="liveUrl" placeholder="https://mi-proyecto.com">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="project-order">Orden (número mayor = aparece primero)</label>
+            <input type="number" id="project-order" name="order" value="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="project-isActive" name="isActive" checked>
+              Activo (mostrar en la web)
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">Guardar</button>
+          <button type="button" class="btn btn-secondary" data-modal="project-modal">Cancelar</button>
+        </div>
       </form>
     </div>
   </div>

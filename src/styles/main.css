@@ -567,26 +567,26 @@ section {
 
 .project-image {
   width: 100%;
-  height: 220px;
+  height: 250px;
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   overflow: hidden;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
 }
 
-.project-image::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9));
-  opacity: 0;
-  transition: opacity var(--transition-base);
+/* Efecto hover mejorado - más sutil */
+.project-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
 }
 
-.project-card:hover .project-image::before {
-  opacity: 1;
+.project-card:hover .project-image {
+  transform: scale(1.02);
+  transition: transform 0.3s ease;
 }
 
 .project-placeholder {
@@ -623,6 +623,13 @@ section {
   font-size: var(--font-size-base);
   line-height: 1.7;
   flex: 1;
+  /* Limitar a 3 líneas con ellipsis */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-height: calc(1.7em * 3); /* line-height * 3 líneas */
 }
 
 .project-tags {
@@ -672,6 +679,16 @@ section {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+/* Para videos en project-image */
+.project-image video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
   display: block;
 }
 

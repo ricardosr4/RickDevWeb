@@ -82,12 +82,16 @@ export class DataService {
    */
   static async loadAllData(): Promise<IAppData> {
     try {
+      // Limpiar caché de proyectos antes de cargar para obtener datos frescos
+      // Esto asegura que los proyectos eliminados no aparezcan en la web
+      this._projects = null;
+      
       const [profile, experiences, educations, skills, projects] = await Promise.all([
-        this.getProfile(),
-        this.getExperiences(),
-        this.getEducations(),
-        this.getSkills(),
-        this.getProjects()
+        this.getProfile(true), // forceRefresh = true para obtener datos frescos
+        this.getExperiences(true),
+        this.getEducations(true),
+        this.getSkills(true),
+        this.getProjects(true) // forceRefresh = true - siempre obtener proyectos frescos desde el servidor
       ]);
 
       return {
@@ -204,12 +208,14 @@ export class DataService {
    * @param {boolean} forceRefresh - Si es true, fuerza la recarga
    * @returns {Promise<IProjectFirestoreData[]>} Array de proyectos
    */
-  static async getProjects(forceRefresh: boolean = false): Promise<IProjectFirestoreData[]> {
-    if (this._projects && !forceRefresh) {
-      return this._projects;
-    }
-
+  static async getProjects(_forceRefresh: boolean = false): Promise<IProjectFirestoreData[]> {
+    // Para proyectos, siempre obtener datos frescos desde el servidor
+    // No usar caché para evitar mostrar proyectos eliminados
+    // getProjects ya usa getDocsFromServer, así que siempre obtiene datos frescos
+    // El parámetro _forceRefresh se mantiene por compatibilidad pero no se usa
+    
     try {
+      // Siempre obtener datos frescos desde el servidor (ignorar caché)
       this._projects = await ProjectRepository.getProjects();
       return this._projects;
     } catch (error) {

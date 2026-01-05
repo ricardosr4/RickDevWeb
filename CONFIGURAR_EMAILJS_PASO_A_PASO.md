@@ -187,3 +187,5 @@ Antes de probar, verifica:
 - Una vez que configures las 3 credenciales (Service ID, Template ID, Public Key), funcionará
 
 
+
+

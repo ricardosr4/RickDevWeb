@@ -82,3 +82,5 @@ Si sigues teniendo problemas, comparte esta información:
 4. **¿Estás autenticado?** (¿ves el dashboard o la pantalla de login?)
 
 
+
+
