@@ -81,3 +81,6 @@ service firebase.storage {
 - [ ] Estás autenticado (ves el dashboard, no el login)
 - [ ] Intentaste subir la imagen nuevamente
 
+
+
+

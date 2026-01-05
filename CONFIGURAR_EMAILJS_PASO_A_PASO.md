@@ -186,3 +186,6 @@ Antes de probar, verifica:
 - El problema es que **NO has configurado EmailJS** todavía
 - Una vez que configures las 3 credenciales (Service ID, Template ID, Public Key), funcionará
 
+
+
+

@@ -10,6 +10,7 @@ import { ProfileRepository } from '@infrastructure/repositories/ProfileRepositor
 import { ExperienceRepository } from '@infrastructure/repositories/ExperienceRepository';
 import { EducationRepository } from '@infrastructure/repositories/EducationRepository';
 import { SkillRepository } from '@infrastructure/repositories/SkillRepository';
+import { ProjectRepository } from '@infrastructure/repositories/ProjectRepository';
 import { ContactMessageRepository } from '@infrastructure/repositories/ContactMessageRepository';
 import { StorageService } from '@infrastructure/services/StorageService';
 import { Timestamp } from 'firebase/firestore';
@@ -18,7 +19,8 @@ import type {
   IProfileData, 
   IExperienceFirestoreData, 
   IEducationFirestoreData, 
-  ISkillsFirestoreData 
+  ISkillsFirestoreData,
+  IProjectFirestoreData 
 } from '@infrastructure/types/firestore.types';
 
 /**
@@ -29,6 +31,9 @@ import type {
 class AdminPanel {
   private editingExperienceId: string | null = null;
   private editingEducationId: string | null = null;
+  private editingProjectId: string | null = null;
+  private projectImageIndex: number = 0;
+  private deletedProjectIds: Set<string> = new Set(); // Registro de proyectos eliminados en esta sesión
 
   /**
    * Crea una instancia de AdminPanel
@@ -36,6 +41,62 @@ class AdminPanel {
   constructor() {
     this.editingExperienceId = null;
     this.editingEducationId = null;
+    this.editingProjectId = null;
+    this.projectImageIndex = 0;
+    this.loadDeletedProjectIds(); // Cargar proyectos eliminados desde localStorage
+  }
+
+  /**
+   * Carga los IDs de proyectos eliminados desde localStorage
+   */
+  private loadDeletedProjectIds(): void {
+    try {
+      const stored = localStorage.getItem('deletedProjectIds');
+      if (stored) {
+        const ids = JSON.parse(stored) as string[];
+        ids.forEach(id => this.deletedProjectIds.add(id));
+        console.log(`Cargados ${ids.length} proyectos eliminados desde localStorage`);
+      }
+    } catch (error) {
+      console.warn('Error al cargar proyectos eliminados desde localStorage:', error);
+    }
+  }
+  
+  /**
+   * Guarda los IDs de proyectos eliminados en localStorage
+   */
+  private saveDeletedProjectIds(): void {
+    try {
+      const ids = Array.from(this.deletedProjectIds);
+      localStorage.setItem('deletedProjectIds', JSON.stringify(ids));
+    } catch (error) {
+      console.warn('Error al guardar proyectos eliminados en localStorage:', error);
+    }
+  }
+  
+  /**
+   * Limpia los IDs de proyectos eliminados de localStorage (después de verificar que realmente fueron eliminados)
+   */
+  private async cleanupDeletedProjectIds(): Promise<void> {
+    const idsToRemove: string[] = [];
+    for (const id of this.deletedProjectIds) {
+      try {
+        const project = await ProjectRepository.getProjectById(id);
+        if (!project) {
+          // El proyecto realmente fue eliminado, podemos removerlo del registro
+          idsToRemove.push(id);
+        }
+      } catch (error) {
+        // Si hay error, mantener el ID en el registro por seguridad
+        console.warn(`Error al verificar proyecto ${id} para limpieza:`, error);
+      }
+    }
+    
+    idsToRemove.forEach(id => this.deletedProjectIds.delete(id));
+    if (idsToRemove.length > 0) {
+      this.saveDeletedProjectIds();
+      console.log(`Limpiados ${idsToRemove.length} IDs de proyectos realmente eliminados del registro`);
+    }
   }
 
   /**
@@ -156,6 +217,20 @@ class AdminPanel {
     if (saveSkillsBtn) {
       saveSkillsBtn.addEventListener('click', () => this.saveSkills());
     }
+
+    // Projects
+    const addProjectBtn = document.getElementById('add-project-btn');
+    if (addProjectBtn) {
+      addProjectBtn.addEventListener('click', () => this.openProjectModal());
+    }
+
+    const projectForm = document.getElementById('project-form') as HTMLFormElement | null;
+    if (projectForm) {
+      projectForm.addEventListener('submit', (e: Event) => this.saveProject(e as SubmitEvent));
+    }
+
+    // Project image upload handlers
+    this.setupProjectImageUploadHandlers();
 
     // Messages
     const refreshMessagesBtn = document.getElementById('refresh-messages-btn');
@@ -548,6 +623,8 @@ class AdminPanel {
       this.loadExperiences();
     } else if (section === 'education') {
       this.loadEducation();
+    } else if (section === 'projects') {
+      this.loadProjects();
     } else if (section === 'messages') {
       this.loadMessages();
     }
@@ -560,7 +637,10 @@ class AdminPanel {
     try {
       await Promise.all([
         this.loadProfile(),
-        this.loadSkills()
+        this.loadSkills(),
+        this.loadExperiences(),
+        this.loadEducation(),
+        this.loadProjects()
       ]);
     } catch (error) {
       console.error('Error al cargar datos:', error);
@@ -1607,6 +1687,825 @@ class AdminPanel {
         profileCurrentImg.src = profileUrl;
         profileCurrent.style.display = 'block';
       }
+    }
+  }
+
+  // ============================================
+  // PROJECTS METHODS
+  // ============================================
+
+  /**
+   * Carga los proyectos
+   */
+  async loadProjects(forceRefresh: boolean = false): Promise<void> {
+    try {
+      console.log('Cargando proyectos... (forceRefresh:', forceRefresh, ')');
+      let projects = await ProjectRepository.getAllProjects();
+      console.log(`Proyectos obtenidos de Firestore: ${projects.length}`);
+      
+      // Verificar que los IDs en deletedProjectIds realmente no existen en Firestore
+      // Usar getProjectById para verificar individualmente cada proyecto (más preciso que getAllProjects)
+      const idsToRemove: string[] = [];
+      
+      for (const deletedId of this.deletedProjectIds) {
+        try {
+          // Verificar si el proyecto realmente existe usando getProjectById (que usa getDocFromServer)
+          const projectExists = await ProjectRepository.getProjectById(deletedId);
+          if (projectExists) {
+            // El proyecto existe en Firestore, no debería estar en deletedProjectIds
+            console.warn(`⚠️ Proyecto ${deletedId} está marcado como eliminado pero existe en Firestore. Removiendo del filtro.`);
+            idsToRemove.push(deletedId);
+          } else {
+            // El proyecto realmente no existe, mantenerlo en deletedProjectIds para filtrarlo
+            console.log(`✓ Proyecto ${deletedId} confirmado como eliminado (no existe en Firestore)`);
+          }
+        } catch (error) {
+          // Si hay un error al verificar, asumir que el proyecto no existe y mantenerlo filtrado
+          console.warn(`Error al verificar proyecto ${deletedId}, manteniéndolo filtrado:`, error);
+        }
+      }
+      
+      // Remover IDs incorrectos del filtro
+      idsToRemove.forEach(id => {
+        this.deletedProjectIds.delete(id);
+        console.log(`Removido ${id} de deletedProjectIds (el proyecto existe en Firestore)`);
+      });
+      
+      if (idsToRemove.length > 0) {
+        this.saveDeletedProjectIds(); // Guardar cambios en localStorage
+      }
+      
+      // Filtrar proyectos eliminados en esta sesión (solo los que realmente no existen)
+      const beforeFilter = projects.length;
+      projects = projects.filter(p => {
+        if (!p.id) return false;
+        if (this.deletedProjectIds.has(p.id)) {
+          console.log(`Filtrando proyecto eliminado en sesión: ${p.id}`);
+          return false;
+        }
+        return true;
+      });
+      
+      if (beforeFilter !== projects.length) {
+        console.log(`Proyectos filtrados por sesión: ${beforeFilter} -> ${projects.length} (eliminados en sesión: ${this.deletedProjectIds.size})`);
+      }
+      
+      console.log(`Proyectos cargados: ${projects.length}`, projects.map(p => ({ id: p.id, name: p.name })));
+      this.renderProjects(projects);
+    } catch (error) {
+      console.error('Error al cargar proyectos:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.showMessage('project-message', `Error al cargar proyectos: ${errorMessage}`, 'error');
+    }
+  }
+
+  /**
+   * Renderiza los proyectos
+   * 
+   * @param {IProjectFirestoreData[]} projects - Array de proyectos
+   */
+  renderProjects(projects: IProjectFirestoreData[]): void {
+    const container = document.getElementById('projects-list');
+    if (!container) return;
+
+    if (projects.length === 0) {
+      container.innerHTML = '<p style="color: var(--admin-text-light);">No hay proyectos agregados</p>';
+      return;
+    }
+
+    // Ordenar por order descendente
+    const sortedProjects = [...projects].sort((a, b) => (b.order || 0) - (a.order || 0));
+
+    container.innerHTML = sortedProjects.map((project) => {
+      const projectId = project.id || `project_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const technologies = Array.isArray(project.technologies) && project.technologies.length > 0
+        ? project.technologies.map(tech => `<span class="tech-tag">${this._escapeHtml(tech)}</span>`).join('')
+        : '';
+
+      return `
+        <div class="project-card-modern" data-id="${projectId}">
+          <div class="project-card-header">
+            <div class="project-card-main-info">
+              <div class="project-card-title-row">
+                <h3 class="project-card-title">${this._escapeHtml(project.name || 'Sin nombre')}</h3>
+                <span class="project-badge ${project.isActive ? 'active' : 'inactive'}">
+                  ${project.isActive ? 'Activo' : 'Inactivo'}
+                </span>
+              </div>
+              ${project.mainImage ? `
+                <div class="project-card-image-preview">
+                  <img src="${this._escapeHtml(project.mainImage)}" alt="${this._escapeHtml(project.name || '')}" style="max-width: 200px; max-height: 150px; border-radius: 8px; object-fit: cover;">
+                </div>
+              ` : ''}
+            </div>
+          </div>
+          
+          <div class="project-card-body">
+            ${project.shortDescription ? `
+              <div class="project-card-section">
+                <h4 class="section-label">Descripción Corta</h4>
+                <p class="section-content">${this._escapeHtml(project.shortDescription)}</p>
+              </div>
+            ` : ''}
+            
+            ${technologies ? `
+              <div class="project-card-section">
+                <h4 class="section-label">Tecnologías</h4>
+                <div class="technologies-container">
+                  ${technologies}
+                </div>
+              </div>
+            ` : ''}
+          </div>
+          
+          <div class="project-card-actions">
+            <button class="btn btn-primary" data-action="edit" data-id="${projectId}">
+              ✏️ Editar
+            </button>
+            <button class="btn btn-danger" data-action="delete" data-id="${projectId}">
+              🗑️ Eliminar
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Agregar event listeners para los botones
+    container.querySelectorAll('[data-action="edit"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const button = e.currentTarget as HTMLElement;
+        const id = button.dataset.id;
+        if (id) {
+          this.editProject(id);
+        }
+      });
+    });
+
+    // Remover listeners anteriores para evitar duplicados
+    container.querySelectorAll('[data-action="delete"]').forEach(btn => {
+      // Clonar el botón para remover listeners anteriores
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode?.replaceChild(newBtn, btn);
+    });
+    
+    // Agregar nuevos listeners
+    container.querySelectorAll('[data-action="delete"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation(); // Prevenir que otros listeners se ejecuten
+        const button = e.currentTarget as HTMLButtonElement;
+        const id = button.dataset.id;
+        console.log('Botón eliminar clickeado, ID:', id, 'Botón:', button);
+        if (id && id.trim() !== '') {
+          // Deshabilitar el botón para evitar múltiples clics
+          button.disabled = true;
+          this.deleteProject(id.trim());
+        } else {
+          console.error('No se encontró ID del proyecto para eliminar');
+          this.showMessage('project-message', 'Error: No se pudo obtener el ID del proyecto', 'error');
+        }
+      }, { once: false }); // No usar once para que funcione después de recargar
+    });
+  }
+
+  /**
+   * Abre el modal de proyecto
+   * 
+   * @param {string | null} projectId - ID del proyecto a editar o null para nuevo
+   */
+  openProjectModal(projectId: string | null = null): void {
+    this.editingProjectId = projectId;
+    const modal = document.getElementById('project-modal');
+    const modalTitle = document.getElementById('project-modal-title');
+    const form = document.getElementById('project-form') as HTMLFormElement | null;
+
+    if (!modal || !form) return;
+
+    // Reset form
+    form.reset();
+    this.resetProjectForm();
+
+    if (projectId) {
+      if (modalTitle) modalTitle.textContent = 'Editar Proyecto';
+      this.loadProjectData(projectId);
+    } else {
+      if (modalTitle) modalTitle.textContent = 'Nuevo Proyecto';
+    }
+
+    modal.style.display = 'flex';
+  }
+
+  /**
+   * Resetea el formulario de proyecto
+   */
+  resetProjectForm(): void {
+    // Reset imagen principal - limpiar completamente
+    const mainImagePreview = document.getElementById('project-mainImage-preview');
+    const mainImageCurrent = document.getElementById('project-mainImage-current');
+    const mainImageInput = document.getElementById('project-mainImage') as HTMLInputElement | null;
+    const mainImageUrlInput = document.getElementById('project-mainImage-url') as HTMLInputElement | null;
+    const mainImageFileInfo = document.getElementById('project-mainImage-file-info');
+    
+    if (mainImagePreview) {
+      mainImagePreview.style.display = 'none';
+      mainImagePreview.innerHTML = '<img id="project-mainImage-preview-img" src="" alt="Preview">';
+    }
+    if (mainImageCurrent) {
+      mainImageCurrent.style.display = 'none';
+      const currentImg = document.getElementById('project-mainImage-current-img') as HTMLImageElement | null;
+      if (currentImg) currentImg.src = '';
+    }
+    if (mainImageInput) {
+      mainImageInput.value = '';
+      // Remover listeners anteriores
+      const newInput = mainImageInput.cloneNode(true) as HTMLInputElement;
+      mainImageInput.parentNode?.replaceChild(newInput, mainImageInput);
+    }
+    if (mainImageUrlInput) mainImageUrlInput.value = '';
+    if (mainImageFileInfo) {
+      mainImageFileInfo.textContent = 'Ningún archivo seleccionado';
+      mainImageFileInfo.style.color = '#64748b';
+    }
+
+    // Reset imágenes adicionales - limpiar completamente
+    const imagesContainer = document.getElementById('project-images-container');
+    if (imagesContainer) {
+      imagesContainer.innerHTML = `
+        <div class="image-upload-container" data-image-index="0">
+          <input type="file" class="project-additional-image" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/webm,video/mp4,video/ogg" style="display: none;">
+          <div class="image-upload-wrapper">
+            <button type="button" class="btn btn-secondary project-image-upload-btn">Seleccionar Imagen</button>
+            <span class="image-upload-info project-image-file-info">Ningún archivo seleccionado</span>
+          </div>
+          <div class="image-preview project-image-preview" style="display: none;">
+            <img class="project-image-preview-img" src="" alt="Preview">
+            <button type="button" class="btn-remove-image project-image-remove-btn">✕</button>
+          </div>
+          <input type="hidden" class="project-image-url">
+        </div>
+      `;
+      // Reconfigurar handlers después de limpiar
+      this.setupProjectImageUploadHandlers();
+    }
+
+    this.projectImageIndex = 0;
+  }
+
+  /**
+   * Configura los handlers de carga de imágenes de proyecto
+   */
+  setupProjectImageUploadHandlers(): void {
+    // Imagen principal - usar delegación de eventos para evitar duplicados
+    const mainImageUploadBtn = document.getElementById('project-mainImage-upload-btn');
+    const mainImageInput = document.getElementById('project-mainImage') as HTMLInputElement | null;
+    const mainImageRemoveBtn = document.getElementById('project-mainImage-remove-btn');
+
+    if (mainImageUploadBtn && mainImageInput) {
+      // Remover listeners anteriores si existen
+      const newUploadBtn = mainImageUploadBtn.cloneNode(true);
+      mainImageUploadBtn.parentNode?.replaceChild(newUploadBtn, mainImageUploadBtn);
+      const newInput = mainImageInput.cloneNode(true) as HTMLInputElement;
+      mainImageInput.parentNode?.replaceChild(newInput, mainImageInput);
+      
+      // Agregar nuevos listeners
+      const updatedUploadBtn = document.getElementById('project-mainImage-upload-btn');
+      const updatedInput = document.getElementById('project-mainImage') as HTMLInputElement | null;
+      if (updatedUploadBtn && updatedInput) {
+        updatedUploadBtn.addEventListener('click', () => updatedInput.click());
+        updatedInput.addEventListener('change', (e) => this.handleProjectMainImageUpload(e));
+      }
+    }
+
+    if (mainImageRemoveBtn) {
+      const newRemoveBtn = mainImageRemoveBtn.cloneNode(true);
+      mainImageRemoveBtn.parentNode?.replaceChild(newRemoveBtn, mainImageRemoveBtn);
+      const updatedRemoveBtn = document.getElementById('project-mainImage-remove-btn');
+      if (updatedRemoveBtn) {
+        updatedRemoveBtn.addEventListener('click', () => {
+          const preview = document.getElementById('project-mainImage-preview');
+          const input = document.getElementById('project-mainImage') as HTMLInputElement | null;
+          const urlInput = document.getElementById('project-mainImage-url') as HTMLInputElement | null;
+          const fileInfo = document.getElementById('project-mainImage-file-info');
+          if (preview) preview.style.display = 'none';
+          if (input) input.value = '';
+          if (urlInput) urlInput.value = '';
+          if (fileInfo) {
+            fileInfo.textContent = 'Ningún archivo seleccionado';
+            fileInfo.style.color = '#64748b';
+          }
+        });
+      }
+    }
+
+    // Imágenes adicionales - usar delegación de eventos desde el contenedor
+    const imagesContainer = document.getElementById('project-images-container');
+    if (imagesContainer) {
+      // Remover listeners anteriores usando delegación
+      imagesContainer.removeEventListener('click', this._handleProjectImageClick as EventListener);
+      imagesContainer.removeEventListener('change', this._handleProjectImageChange as EventListener);
+      
+      // Agregar nuevos listeners con delegación
+      imagesContainer.addEventListener('click', this._handleProjectImageClick.bind(this));
+      imagesContainer.addEventListener('change', this._handleProjectImageChange.bind(this));
+    }
+
+    // Botón agregar otra imagen
+    const addImageBtn = document.getElementById('add-project-image-btn');
+    if (addImageBtn) {
+      // Remover listener anterior si existe
+      const newAddBtn = addImageBtn.cloneNode(true);
+      addImageBtn.parentNode?.replaceChild(newAddBtn, addImageBtn);
+      const updatedAddBtn = document.getElementById('add-project-image-btn');
+      if (updatedAddBtn) {
+        updatedAddBtn.addEventListener('click', () => {
+          this.projectImageIndex++;
+          const container = document.getElementById('project-images-container');
+          if (container) {
+            const newContainer = document.createElement('div');
+            newContainer.className = 'image-upload-container';
+            newContainer.setAttribute('data-image-index', String(this.projectImageIndex));
+            newContainer.innerHTML = `
+              <input type="file" class="project-additional-image" accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/svg+xml,video/webm,video/mp4,video/ogg" style="display: none;">
+              <div class="image-upload-wrapper">
+                <button type="button" class="btn btn-secondary project-image-upload-btn">Seleccionar Imagen</button>
+                <span class="image-upload-info project-image-file-info">Ningún archivo seleccionado</span>
+              </div>
+              <div class="image-preview project-image-preview" style="display: none;">
+                <img class="project-image-preview-img" src="" alt="Preview">
+                <button type="button" class="btn-remove-image project-image-remove-btn">✕</button>
+              </div>
+              <input type="hidden" class="project-image-url">
+            `;
+            container.appendChild(newContainer);
+            this.setupProjectImageUploadHandlers();
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Handler delegado para clicks en imágenes de proyecto
+   */
+  private _handleProjectImageClick(e: Event): void {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('project-image-upload-btn')) {
+      const container = target.closest('.image-upload-container');
+      const input = container?.querySelector('.project-additional-image') as HTMLInputElement | null;
+      if (input) input.click();
+    } else if (target.classList.contains('project-image-remove-btn')) {
+      const container = target.closest('.image-upload-container');
+      if (container) {
+        const preview = container.querySelector('.project-image-preview') as HTMLElement | null;
+        const input = container.querySelector('.project-additional-image') as HTMLInputElement | null;
+        const urlInput = container.querySelector('.project-image-url') as HTMLInputElement | null;
+        const fileInfo = container.querySelector('.project-image-file-info') as HTMLElement | null;
+        if (preview) preview.style.display = 'none';
+        if (input) input.value = '';
+        if (urlInput) urlInput.value = '';
+        if (fileInfo) {
+          fileInfo.textContent = 'Ningún archivo seleccionado';
+          fileInfo.style.color = '#64748b';
+        }
+      }
+    }
+  }
+
+  /**
+   * Handler delegado para cambios en inputs de imágenes de proyecto
+   */
+  private _handleProjectImageChange(e: Event): void {
+    const target = e.target as HTMLInputElement;
+    if (target.classList.contains('project-additional-image')) {
+      this.handleProjectAdditionalImageUpload(e);
+    }
+  }
+
+  /**
+   * Maneja la carga de la imagen principal del proyecto
+   */
+  async handleProjectMainImageUpload(e: Event): Promise<void> {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const preview = document.getElementById('project-mainImage-preview');
+    const previewImg = document.getElementById('project-mainImage-preview-img') as HTMLImageElement | null;
+    const fileInfo = document.getElementById('project-mainImage-file-info');
+    const current = document.getElementById('project-mainImage-current');
+
+    if (!preview || !previewImg) return;
+
+    // Validar tamaño (10MB para imágenes, 50MB para videos)
+    const isVideo = file.type.startsWith('video/');
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxSizeMB = isVideo ? 50 : 10;
+    
+    if (file.size > maxSize) {
+      alert(`El archivo es demasiado grande. Máximo ${maxSizeMB}MB`);
+      input.value = '';
+      return;
+    }
+
+    // Mostrar preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (isVideo) {
+        // Para videos, crear un elemento video
+        const video = document.createElement('video');
+        video.src = result;
+        video.controls = true;
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '200px';
+        preview.innerHTML = '';
+        preview.appendChild(video);
+      } else {
+        previewImg.src = result;
+      }
+      preview.style.display = 'block';
+      if (current) current.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+
+    // Subir imagen
+    try {
+      const timestamp = Date.now();
+      const fileName = `project_main_${timestamp}.${file.name.split('.').pop()}`;
+      const path = `projects/${fileName}`;
+      
+      const url = await StorageService.uploadFile(file, path);
+      const urlInput = document.getElementById('project-mainImage-url') as HTMLInputElement | null;
+      if (urlInput) urlInput.value = url;
+      if (fileInfo) {
+        fileInfo.textContent = `Imagen cargada: ${file.name}`;
+        fileInfo.style.color = 'var(--admin-success-color)';
+      }
+    } catch (error) {
+      console.error('Error al subir imagen principal:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Detalles del error:', {
+        message: errorMessage,
+        code: (error as any)?.code,
+        stack: error instanceof Error ? error.stack : 'No stack'
+      });
+      
+      // Mostrar mensaje de error más específico
+      let userMessage = 'Error al subir la imagen. ';
+      if (errorMessage.includes('403') || errorMessage.includes('permission') || errorMessage.includes('unauthorized')) {
+        userMessage += 'No tienes permisos. Verifica las reglas de Storage en Firebase Console.';
+      } else if (errorMessage.includes('storage/unauthorized')) {
+        userMessage += 'Las reglas de Storage no permiten escritura. Ve a Firebase Console > Storage > Rules y asegúrate de tener: allow write: if request.auth != null; para /projects/';
+      } else {
+        userMessage += errorMessage;
+      }
+      
+      alert(userMessage);
+      input.value = '';
+      preview.style.display = 'none';
+      if (fileInfo) {
+        fileInfo.textContent = 'Error al subir imagen';
+        fileInfo.style.color = 'var(--admin-error-color)';
+      }
+    }
+  }
+
+  /**
+   * Maneja la carga de imágenes adicionales del proyecto
+   */
+  async handleProjectAdditionalImageUpload(e: Event): Promise<void> {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const container = input.closest('.image-upload-container');
+    if (!container) return;
+
+    const preview = container.querySelector('.project-image-preview') as HTMLElement | null;
+    const previewImg = container.querySelector('.project-image-preview-img') as HTMLImageElement | null;
+    const fileInfo = container.querySelector('.project-image-file-info') as HTMLElement | null;
+    const urlInput = container.querySelector('.project-image-url') as HTMLInputElement | null;
+
+    if (!preview || !previewImg) return;
+
+    // Validar tamaño (10MB para imágenes, 50MB para videos)
+    const isVideo = file.type.startsWith('video/');
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxSizeMB = isVideo ? 50 : 10;
+    
+    if (file.size > maxSize) {
+      alert(`El archivo es demasiado grande. Máximo ${maxSizeMB}MB`);
+      input.value = '';
+      return;
+    }
+
+    // Mostrar preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      if (isVideo) {
+        // Para videos, crear un elemento video
+        const video = document.createElement('video');
+        video.src = result;
+        video.controls = true;
+        video.style.maxWidth = '100%';
+        video.style.maxHeight = '200px';
+        preview.innerHTML = '';
+        preview.appendChild(video);
+      } else {
+        previewImg.src = result;
+      }
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+
+    // Subir imagen
+    try {
+      const timestamp = Date.now();
+      const fileName = `project_${timestamp}_${this.projectImageIndex}.${file.name.split('.').pop()}`;
+      const path = `projects/${fileName}`;
+      
+      const url = await StorageService.uploadFile(file, path);
+      if (urlInput) urlInput.value = url;
+      if (fileInfo) {
+        fileInfo.textContent = `Imagen cargada: ${file.name}`;
+        fileInfo.style.color = 'var(--admin-success-color)';
+      }
+    } catch (error) {
+      console.error('Error al subir imagen adicional:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+      console.error('Detalles del error:', {
+        message: errorMessage,
+        code: (error as any)?.code,
+        stack: error instanceof Error ? error.stack : 'No stack'
+      });
+      
+      // Mostrar mensaje de error más específico
+      let userMessage = 'Error al subir la imagen. ';
+      if (errorMessage.includes('403') || errorMessage.includes('permission') || errorMessage.includes('unauthorized')) {
+        userMessage += 'No tienes permisos. Verifica las reglas de Storage en Firebase Console.';
+      } else if (errorMessage.includes('storage/unauthorized')) {
+        userMessage += 'Las reglas de Storage no permiten escritura. Ve a Firebase Console > Storage > Rules y asegúrate de tener: allow write: if request.auth != null; para /projects/';
+      } else {
+        userMessage += errorMessage;
+      }
+      
+      alert(userMessage);
+      input.value = '';
+      preview.style.display = 'none';
+      if (fileInfo) {
+        fileInfo.textContent = 'Error al subir imagen';
+        fileInfo.style.color = 'var(--admin-error-color)';
+      }
+    }
+  }
+
+  /**
+   * Carga los datos de un proyecto para editar
+   */
+  async loadProjectData(id: string): Promise<void> {
+    try {
+      const project = await ProjectRepository.getProjectById(id);
+      if (!project) {
+        this.showMessage('project-message', 'Proyecto no encontrado', 'error');
+        return;
+      }
+
+      // Llenar formulario
+      const nameInput = document.getElementById('project-name') as HTMLInputElement | null;
+      const shortDescInput = document.getElementById('project-shortDescription') as HTMLTextAreaElement | null;
+      const fullDescInput = document.getElementById('project-fullDescription') as HTMLTextAreaElement | null;
+      const technologiesInput = document.getElementById('project-technologies') as HTMLInputElement | null;
+      const featuresInput = document.getElementById('project-features') as HTMLTextAreaElement | null;
+      const repoUrlInput = document.getElementById('project-repositoryUrl') as HTMLInputElement | null;
+      const liveUrlInput = document.getElementById('project-liveUrl') as HTMLInputElement | null;
+      const orderInput = document.getElementById('project-order') as HTMLInputElement | null;
+      const isActiveInput = document.getElementById('project-isActive') as HTMLInputElement | null;
+      const mainImageUrlInput = document.getElementById('project-mainImage-url') as HTMLInputElement | null;
+
+      if (nameInput) nameInput.value = project.name || '';
+      if (shortDescInput) shortDescInput.value = project.shortDescription || '';
+      if (fullDescInput) fullDescInput.value = project.fullDescription || '';
+      if (technologiesInput) technologiesInput.value = Array.isArray(project.technologies) ? project.technologies.join(', ') : '';
+      if (featuresInput) featuresInput.value = Array.isArray(project.features) ? project.features.join('\n') : '';
+      if (repoUrlInput) repoUrlInput.value = project.repositoryUrl || '';
+      if (liveUrlInput) liveUrlInput.value = project.liveUrl || '';
+      if (orderInput) orderInput.value = String(project.order || 0);
+      if (isActiveInput) isActiveInput.checked = project.isActive !== false;
+      if (mainImageUrlInput) mainImageUrlInput.value = project.mainImage || '';
+
+      // Mostrar imagen principal actual
+      if (project.mainImage) {
+        const current = document.getElementById('project-mainImage-current');
+        const currentImg = document.getElementById('project-mainImage-current-img') as HTMLImageElement | null;
+        if (current && currentImg) {
+          currentImg.src = project.mainImage;
+          current.style.display = 'block';
+        }
+      }
+
+      // Cargar imágenes adicionales
+      if (Array.isArray(project.images) && project.images.length > 0) {
+        const imagesContainer = document.getElementById('project-images-container');
+        if (imagesContainer) {
+          imagesContainer.innerHTML = '';
+          project.images.forEach((imageUrl, index) => {
+            const container = document.createElement('div');
+            container.className = 'image-upload-container';
+            container.setAttribute('data-image-index', String(index));
+            container.innerHTML = `
+              <div class="image-current" style="display: block;">
+                <p style="color: var(--admin-text-light); font-size: 0.875rem; margin-top: 0.5rem;">Imagen ${index + 1}:</p>
+                <img src="${this._escapeHtml(imageUrl)}" alt="Imagen ${index + 1}" style="max-width: 200px; max-height: 150px; border-radius: 8px; object-fit: cover;">
+                <button type="button" class="btn btn-danger" style="margin-top: 0.5rem;" data-remove-image="${index}">Eliminar</button>
+              </div>
+              <input type="hidden" class="project-image-url" value="${this._escapeHtml(imageUrl)}">
+            `;
+            imagesContainer.appendChild(container);
+          });
+          
+          // Agregar botón para agregar más imágenes
+          const addBtn = document.createElement('button');
+          addBtn.type = 'button';
+          addBtn.className = 'btn btn-secondary';
+          addBtn.textContent = '+ Agregar Otra Imagen';
+          addBtn.id = 'add-project-image-btn';
+          addBtn.style.marginTop = '0.5rem';
+          imagesContainer.appendChild(addBtn);
+          
+          this.setupProjectImageUploadHandlers();
+        }
+      }
+    } catch (error) {
+      console.error('Error al cargar datos del proyecto:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.showMessage('project-message', `Error al cargar proyecto: ${errorMessage}`, 'error');
+    }
+  }
+
+  /**
+   * Guarda un proyecto
+   * 
+   * @param {SubmitEvent} e - Evento de submit
+   */
+  async saveProject(e: SubmitEvent): Promise<void> {
+    e.preventDefault();
+    try {
+      const form = e.target as HTMLFormElement;
+      const formData = new FormData(form);
+      const id = (formData.get('id') as string) || `proj_${Date.now()}`;
+
+      const technologies = (formData.get('technologies') as string)
+        .split(',')
+        .filter(t => t.trim())
+        .map(t => t.trim());
+
+      const features = (formData.get('features') as string)
+        .split('\n')
+        .filter(f => f.trim())
+        .map(f => f.trim());
+
+      // Obtener URLs de imágenes adicionales
+      const additionalImages: string[] = [];
+      document.querySelectorAll('.project-image-url').forEach((input) => {
+        const url = (input as HTMLInputElement).value.trim();
+        if (url) additionalImages.push(url);
+      });
+
+      // Preparar datos del proyecto
+      const projectData: Partial<IProjectFirestoreData> = {
+        name: (formData.get('name') as string) || '',
+        shortDescription: (formData.get('shortDescription') as string) || '',
+        fullDescription: (formData.get('fullDescription') as string) || '',
+        mainImage: (formData.get('mainImageUrl') as string) || '',
+        images: additionalImages,
+        technologies,
+        features,
+        repositoryUrl: (formData.get('repositoryUrl') as string) || '',
+        liveUrl: (formData.get('liveUrl') as string) || '',
+        order: parseInt((formData.get('order') as string) || '0') || 0,
+        isActive: (formData.get('isActive') as string) === 'on'
+      };
+
+      if (this.editingProjectId) {
+        // Al actualizar, NO incluir el ID en projectData para evitar duplicados
+        // Usar siempre this.editingProjectId que es el ID real del documento
+        console.log(`Actualizando proyecto con ID: ${this.editingProjectId}`);
+        console.log('Datos a actualizar:', projectData);
+        await ProjectRepository.updateProject(this.editingProjectId, projectData);
+      } else {
+        // Al crear, incluir el ID generado
+        await ProjectRepository.createProject({
+          ...projectData,
+          id
+        } as IProjectFirestoreData);
+      }
+
+      this.closeModal('project-modal');
+      await this.loadProjects();
+      this.showMessage(
+        'project-message',
+        this.editingProjectId ? 'Proyecto actualizado exitosamente' : 'Proyecto creado exitosamente',
+        'success'
+      );
+      this.editingProjectId = null;
+    } catch (error) {
+      console.error('Error al guardar proyecto:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.showMessage('project-message', `Error al guardar proyecto: ${errorMessage}`, 'error');
+    }
+  }
+
+  /**
+   * Edita un proyecto
+   * 
+   * @param {string} id - ID del proyecto
+   */
+  editProject(id: string): void {
+    this.openProjectModal(id);
+  }
+
+  /**
+   * Elimina un proyecto
+   * 
+   * @param {string} id - ID del proyecto
+   */
+  async deleteProject(id: string): Promise<void> {
+    console.log('deleteProject llamado con ID:', id);
+    console.log('Tipo de ID:', typeof id);
+    console.log('ID después de trim:', id?.trim());
+    
+    if (!id || id.trim() === '') {
+      console.error('ID de proyecto inválido:', id);
+      this.showMessage('project-message', 'Error: ID de proyecto inválido', 'error');
+      return;
+    }
+
+    const confirmed = confirm(`¿Estás seguro de que deseas eliminar este proyecto? Esta acción no se puede deshacer.`);
+    console.log('Usuario confirmó eliminación:', confirmed);
+    
+    if (!confirmed) {
+      console.log('Usuario canceló la eliminación');
+      return;
+    }
+
+    try {
+      console.log('Iniciando eliminación del proyecto con ID:', id);
+      
+      // Agregar a la lista de eliminados inmediatamente
+      this.deletedProjectIds.add(id);
+      this.saveDeletedProjectIds(); // Guardar en localStorage
+      console.log(`Proyecto ${id} agregado a lista de eliminados. Total eliminados: ${this.deletedProjectIds.size}`);
+      
+      // Limpiar el contenedor inmediatamente para feedback visual
+      const container = document.getElementById('projects-list');
+      if (container) {
+        container.innerHTML = '<p style="color: var(--admin-text-light);">Eliminando proyecto...</p>';
+      }
+      
+      // Intentar eliminar de Firestore
+      try {
+        await ProjectRepository.hardDeleteProject(id);
+        console.log('Proyecto eliminado exitosamente de Firestore');
+      } catch (deleteError) {
+        // Si el proyecto ya no existe o el ID es incorrecto, mostrar mensaje claro
+        const errorMsg = deleteError instanceof Error ? deleteError.message : String(deleteError);
+        console.error('Error al eliminar proyecto:', errorMsg);
+        
+        if (errorMsg.includes('no existe') || errorMsg.includes('does not exist') || errorMsg.includes('no existe en Firestore')) {
+          console.warn('El proyecto no existe en Firestore. Puede que ya haya sido eliminado o el ID sea incorrecto.');
+          this.showMessage('project-message', 'El proyecto no existe o ya fue eliminado. Recargando lista...', 'error');
+          // Recargar proyectos para actualizar la lista
+          await this.loadProjects(true);
+          return; // Salir sin mostrar error
+        } else {
+          throw deleteError; // Re-lanzar si es otro tipo de error
+        }
+      }
+      
+      // No verificar aquí porque hardDeleteProject ya lo hace con getAllProjects
+      // Esperar un poco más para asegurar propagación
+      console.log('Esperando propagación adicional...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Recargar proyectos (el filtro automático eliminará este proyecto de la lista)
+      console.log('Recargando lista de proyectos...');
+      await this.loadProjects(true); // forceRefresh = true
+      
+      // Limpiar IDs de proyectos que realmente fueron eliminados (en segundo plano)
+      setTimeout(() => this.cleanupDeletedProjectIds(), 2000);
+      
+      this.showMessage('project-message', 'Proyecto eliminado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error completo al eliminar proyecto:', error);
+      console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      this.showMessage('project-message', `Error al eliminar proyecto: ${errorMessage}`, 'error');
+      // Recargar de todos modos para mostrar el estado actual
+      await this.loadProjects();
     }
   }
 }

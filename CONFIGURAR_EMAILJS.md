@@ -117,3 +117,6 @@ El plan gratuito de EmailJS incluye:
 3. Asegúrate de que el servicio de email esté conectado correctamente
 4. Verifica que la plantilla tenga las variables correctas
 
+
+
+

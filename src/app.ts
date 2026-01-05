@@ -185,6 +185,19 @@ class App {
         ContentRenderer.renderSkills(data.skills);
       }
 
+      // Renderizar proyectos (siempre llamar para limpiar proyectos estáticos)
+      console.log('App._loadDataFromFirestore: Proyectos cargados desde DataService:', data.projects);
+      console.log('App._loadDataFromFirestore: Cantidad de proyectos:', data.projects?.length || 0);
+      if (data.projects && data.projects.length > 0) {
+        console.log('App._loadDataFromFirestore: Detalles de proyectos:', data.projects.map(p => ({
+          id: p.id,
+          name: p.name,
+          isActive: p.isActive,
+          order: p.order
+        })));
+      }
+      ContentRenderer.renderProjects(data.projects || []);
+
       console.log('Datos cargados desde Firestore correctamente');
       
       // Las imágenes se cargarán de forma asíncrona sin bloquear

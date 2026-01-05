@@ -65,3 +65,6 @@ service firebase.storage {
 2. Recarga la página del admin
 3. Intenta subir la imagen nuevamente
 
+
+
+

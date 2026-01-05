@@ -161,3 +161,6 @@ Comparte esta información:
 2. **Mensajes de la consola** (F12 > Console)
 3. **¿Ves el mensaje "Rules published successfully"?**
 
+
+
+

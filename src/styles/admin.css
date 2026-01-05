@@ -885,6 +885,122 @@ body {
   flex-wrap: wrap;
 }
 
+/* Project Cards */
+.project-card-modern {
+  background: var(--admin-bg-primary);
+  border-radius: var(--admin-radius-xl);
+  padding: 2.5rem;
+  box-shadow: var(--admin-shadow-lg);
+  border: 2px solid var(--admin-border-color);
+  transition: all var(--admin-transition);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.project-card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 5px;
+  height: 100%;
+  background: linear-gradient(135deg, var(--admin-primary-color), var(--admin-secondary-color));
+  opacity: 0;
+  transition: opacity var(--admin-transition);
+}
+
+.project-card-modern:hover {
+  box-shadow: var(--admin-shadow-xl);
+  transform: translateY(-4px);
+  border-color: var(--admin-primary-light);
+}
+
+.project-card-modern:hover::before {
+  opacity: 1;
+}
+
+.project-card-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid var(--admin-border-color);
+}
+
+.project-card-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.project-card-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.project-card-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--admin-text-primary);
+  margin: 0;
+  letter-spacing: -0.01em;
+  flex: 1;
+}
+
+.project-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  border-radius: var(--admin-radius-full);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.project-badge.active {
+  background: linear-gradient(135deg, var(--admin-success-color), #059669);
+  color: white;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.project-badge.inactive {
+  background: var(--admin-bg-secondary);
+  color: var(--admin-text-secondary);
+  border: 2px solid var(--admin-border-color);
+}
+
+.project-card-image-preview {
+  margin-top: 1rem;
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
+  border: 2px solid var(--admin-border-color);
+}
+
+.project-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  margin-bottom: 2rem;
+}
+
+.project-card-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.project-card-actions {
+  display: flex;
+  gap: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--admin-border-color);
+  flex-wrap: wrap;
+}
+
 /* Modals */
 .modal {
   display: none;
@@ -1207,6 +1323,23 @@ body {
   }
 
   .experience-card-actions .btn {
+    width: 100%;
+  }
+
+  .project-card-modern {
+    padding: 1.5rem;
+  }
+
+  .project-card-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .project-card-actions {
+    flex-direction: column;
+  }
+
+  .project-card-actions .btn {
     width: 100%;
   }
 

@@ -92,3 +92,6 @@ firebase deploy --only hosting
 1. Lee: `CONFIGURAR_EMAILJS_PASO_A_PASO.md` (guía completa)
 2. O lee: `OBTENER_PUBLIC_KEY.md` (solo para la Public Key)
 
+
+
+

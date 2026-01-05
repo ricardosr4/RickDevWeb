@@ -26,3 +26,6 @@
 - **Ctrl + Shift + J**: Abrir solo la consola
 - **Ctrl + R**: Recargar página
 
+
+
+

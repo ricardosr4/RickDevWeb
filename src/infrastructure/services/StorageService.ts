@@ -47,15 +47,21 @@ export class StorageService {
       console.log('Storage bucket:', storage.app.options.storageBucket);
       
       // Validar tipo de archivo
-      const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif'];
-      if (!validImageTypes.includes(file.type)) {
-        throw new Error(`Tipo de archivo no válido: ${file.type}. Solo se permiten imágenes (JPEG, PNG, WebP, GIF)`);
+      const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+      const validVideoTypes = ['video/webm', 'video/mp4', 'video/ogg'];
+      const isValidType = validImageTypes.includes(file.type) || validVideoTypes.includes(file.type);
+      
+      if (!isValidType) {
+        throw new Error(`Tipo de archivo no válido: ${file.type}. Se permiten imágenes (JPEG, PNG, WebP, GIF, SVG) y videos (WebM, MP4, OGG)`);
       }
 
-      // Validar tamaño (máximo 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
+      // Validar tamaño (10MB para imágenes, 50MB para videos)
+      const isVideo = validVideoTypes.includes(file.type);
+      const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024; // 50MB para videos, 10MB para imágenes
+      const maxSizeMB = isVideo ? 50 : 10;
+      
       if (file.size > maxSize) {
-        throw new Error(`El archivo es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). El tamaño máximo es 5MB`);
+        throw new Error(`El archivo es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)}MB). El tamaño máximo es ${maxSizeMB}MB`);
       }
 
       // Crear referencia al archivo
@@ -92,7 +98,7 @@ export class StorageService {
         
         // Errores específicos de Firebase Storage
         if (error.message.includes('storage/unauthorized') || error.message.includes('403') || error.message.includes('Forbidden')) {
-          errorMessage = '❌ Error 403: Las reglas de Storage no permiten escritura. Ve a: https://console.firebase.google.com/project/rickdev-90632/storage/rules - BORRA todo y pega: rules_version = \'2\'; service firebase.storage { match /b/{bucket}/o { match /profile/{allPaths=**} { allow read: if true; allow write: if request.auth != null; } } } - Luego haz clic en "Publicar" y espera 20 segundos. Ver archivo CONFIGURAR_REGLAS_STORAGE.md';
+          errorMessage = '❌ Error 403: Las reglas de Storage no permiten escritura. Ve a: https://console.firebase.google.com/project/rickdev-90632/storage/rules - BORRA todo y pega: rules_version = \'2\'; service firebase.storage { match /b/{bucket}/o { match /profile/{allPaths=**} { allow read: if true; allow write: if request.auth != null; } match /projects/{allPaths=**} { allow read: if true; allow write: if request.auth != null; } } } - Luego haz clic en "Publicar" y espera 20 segundos. Ver archivo ACTUALIZAR_REGLAS_STORAGE_PROYECTOS.md';
         } else if (error.message.includes('CORS') || error.message.includes('preflight') || error.message.includes('ERR_FAILED')) {
           errorMessage = '❌ Error CORS o Storage no configurado. Verifica: 1) Storage está habilitado en Firebase Console (debes ver archivos, NO el mensaje de actualizar), 2) Las reglas de Storage permiten escritura para usuarios autenticados, 3) Espera 2-3 minutos después de habilitar Storage. Ver archivo VERIFICAR_STORAGE.md';
         } else if (error.message.includes('storage/quota-exceeded')) {
@@ -111,6 +117,39 @@ export class StorageService {
       }
       
       throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Extrae la ruta de Storage desde una URL de Firebase Storage
+   * 
+   * @static
+   * @param {string} url - URL de descarga de Firebase Storage
+   * @returns {string | null} Ruta del archivo en Storage o null si no es una URL válida
+   */
+  static extractStoragePathFromUrl(url: string): string | null {
+    try {
+      // Formato de URL de Firebase Storage:
+      // https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{path}?alt=media&token={token}
+      const urlPattern = /firebasestorage\.googleapis\.com\/v0\/b\/[^/]+\/o\/([^?]+)/;
+      const match = url.match(urlPattern);
+      
+      if (match && match[1]) {
+        // Decodificar la ruta (puede estar codificada)
+        const encodedPath = match[1];
+        const decodedPath = decodeURIComponent(encodedPath);
+        return decodedPath;
+      }
+      
+      // Si no coincide con el patrón, puede ser una ruta directa
+      if (url.startsWith('projects/') || url.startsWith('profile/')) {
+        return url;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error al extraer ruta de Storage desde URL:', error);
+      return null;
     }
   }
 
@@ -136,8 +175,33 @@ export class StorageService {
     } catch (error) {
       console.error('Error al eliminar archivo:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      // Si el archivo no existe, no es un error crítico
+      if (errorMessage.includes('storage/object-not-found') || errorMessage.includes('not found')) {
+        console.warn(`El archivo ${path} no existe en Storage, puede que ya haya sido eliminado`);
+        return;
+      }
+      
       throw new Error(`Error al eliminar archivo: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Elimina un archivo de Firebase Storage desde su URL
+   * 
+   * @static
+   * @param {string} url - URL de descarga de Firebase Storage
+   * @returns {Promise<void>}
+   * @throws {Error} Si falla la eliminación
+   */
+  static async deleteFileByUrl(url: string): Promise<void> {
+    const path = this.extractStoragePathFromUrl(url);
+    if (!path) {
+      console.warn(`No se pudo extraer la ruta de Storage desde la URL: ${url}`);
+      return;
+    }
+    
+    await this.deleteFile(path);
   }
 
   /**
